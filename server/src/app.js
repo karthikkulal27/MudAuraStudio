@@ -41,16 +41,23 @@ app.use((req, res, next) => {
 // Our stripeRoutes file defines router.post('/webhook', express.raw(...)),
 // so we mount this router first to ensure raw body is available for that route.
 app.use('/api/stripe', stripeRoutes);
+app.use('/stripe', stripeRoutes);
 
 // JSON parser for the rest
 app.use(express.json());
 
-// Routes
+// Routes (support both with and without /api prefix due to Vercel path behavior)
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/cart', cartRoutes);
+
+app.use('/auth', authRoutes);
+app.use('/products', productRoutes);
+app.use('/orders', orderRoutes);
+app.use('/testimonials', testimonialRoutes);
+app.use('/cart', cartRoutes);
 
 // Health check (both /api/health and /health for serverless path ambiguity)
 const healthHandler = (req, res) => {

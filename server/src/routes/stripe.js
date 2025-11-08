@@ -4,11 +4,26 @@ import prisma from '../config/database.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Initialize Stripe only if the secret key exists to avoid crashing the app on startup
+let stripe = null;
+const stripeSecret = process.env.STRIPE_SECRET_KEY;
+if (stripeSecret) {
+  try {
+    stripe = new Stripe(stripeSecret);
+  } catch (e) {
+    console.error('Failed to initialize Stripe SDK:', e?.message || e);
+  }
+} else {
+  console.warn('STRIPE_SECRET_KEY is not set. Stripe endpoints will return 503 until configured.');
+}
 
 // Create checkout session
 router.post('/create-checkout-session', authMiddleware, async (req, res) => {
   try {
+    if (!stripe) {
+      return res.status(503).json({ error: 'Stripe not configured' });
+    }
     const { items, orderId } = req.body;
 
     if (!items || !items.length) {
@@ -50,6 +65,9 @@ router.post('/create-checkout-session', authMiddleware, async (req, res) => {
 
 // Webhook handler (raw body required)
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe) {
+    return res.status(503).send('Stripe not configured');
+  }
   const sig = req.headers['stripe-signature'];
 
   let event;
@@ -88,6 +106,9 @@ export default router;
 // Retrieve a checkout session
 router.get('/session/:id', authMiddleware, async (req, res) => {
   try {
+    if (!stripe) {
+      return res.status(503).json({ error: 'Stripe not configured' });
+    }
     const { id } = req.params;
     const session = await stripe.checkout.sessions.retrieve(id, {
       expand: ['line_items']

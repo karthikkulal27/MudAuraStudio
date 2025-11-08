@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
@@ -8,15 +8,38 @@ import Button from '../components/ui/Button';
 const OrderConfirmation = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { orderId, total, shippingDetails } = location.state || {};
+  const params = new URLSearchParams(location.search);
+  const sessionId = params.get('session_id');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [session, setSession] = useState(null);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
-    if (!orderId) {
-      navigate('/');
+    let isMounted = true;
+    async function load() {
+      if (!sessionId) {
+        navigate('/');
+        return;
+      }
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`${API_URL}/stripe/session/${sessionId}`, {
+          credentials: 'include'
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load session');
+        if (isMounted) setSession(data.session);
+      } catch (e) {
+        if (isMounted) setError(e.message);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
     }
-  }, [orderId, navigate]);
-
-  if (!orderId) return null;
+    load();
+    return () => { isMounted = false; };
+  }, [sessionId, navigate, API_URL]);
 
   return (
     <PageTransition>
@@ -40,14 +63,13 @@ const OrderConfirmation = () => {
               >
                 Thank you for your order!
               </motion.h1>
-              
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
                 className="mt-2 text-lg text-gray-600"
               >
-                Your order #{orderId} has been confirmed
+                {loading ? 'Confirming your payment...' : error ? 'There was an issue confirming your payment.' : 'Your payment has been confirmed.'}
               </motion.p>
             </div>
 
@@ -62,35 +84,17 @@ const OrderConfirmation = () => {
               </h2>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">
-                      Shipping Address
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-600">
-                      {shippingDetails.firstName} {shippingDetails.lastName}<br />
-                      {shippingDetails.address}<br />
-                      {shippingDetails.city}, {shippingDetails.zipCode}
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">
-                      Contact Information
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-600">
-                      {shippingDetails.email}
-                    </p>
-                  </div>
-                </div>
-
                 <div>
                   <h3 className="text-sm font-medium text-gray-900">
                     Payment Total
                   </h3>
                   <p className="mt-1 text-2xl font-medium text-clay-600">
-                    ${total.toFixed(2)}
+                    {session?.amount_total ? `$${(session.amount_total / 100).toFixed(2)}` : '--'}
                   </p>
                 </div>
+                {session?.id && (
+                  <div className="text-sm text-gray-500">Session ID: {session.id}</div>
+                )}
               </div>
             </motion.div>
 

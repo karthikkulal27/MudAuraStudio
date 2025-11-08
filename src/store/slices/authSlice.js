@@ -1,4 +1,5 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { getCurrentUser } from '../../utils/auth';
 
 const initialState = {
   user: null,
@@ -32,7 +33,35 @@ export const authSlice = createSlice({
       state.error = null;
     },
   },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchMe.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMe.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload) {
+          state.isAuthenticated = true;
+          state.user = action.payload;
+        }
+      })
+      .addCase(fetchMe.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload || null;
+      });
+  }
 });
 
 export const { loginStart, loginSuccess, loginFailure, logout } = authSlice.actions;
 export default authSlice.reducer;
+
+// Thunks
+export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithValue }) => {
+  try {
+    const user = await getCurrentUser();
+    return user; // null if not logged in
+  } catch (e) {
+    return rejectWithValue(e.message || 'Failed to fetch user');
+  }
+});

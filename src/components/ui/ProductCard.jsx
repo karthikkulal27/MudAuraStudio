@@ -4,17 +4,16 @@ import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
 import Button from './Button';
 import { useDispatch } from 'react-redux';
-import { addItem } from '../../store/slices/cartSlice';
+import { addToCart } from '../../store/slices/cartSlice';
 
 const ProductCard = ({ product }) => {
   const dispatch = useDispatch();
 
   const imageSrc = product.image || (product.images && product.images[0]) || '';
 
-  const handleAdd = (e) => {
+  const handleAdd = async (e) => {
     e.preventDefault();
-    // Dispatch addItem with quantity 1
-    dispatch(addItem({ ...product, quantity: 1 }));
+    dispatch(addToCart({ product, quantity: 1 }));
   };
 
   return (

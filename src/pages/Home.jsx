@@ -6,12 +6,54 @@ import 'react-lazy-load-image-component/src/effects/blur.css';
 import PageTransition from '../components/ui/PageTransition';
 import Button from '../components/ui/Button';
 import ProductCard from '../components/ui/ProductCard';
-import { products, testimonials } from '../data/products';
+import { useEffect, useState } from 'react';
 
 const Home = () => {
   const [heroRef, heroInView] = useInView({ triggerOnce: true });
   const [featuredRef, featuredInView] = useInView({ triggerOnce: true });
   const [testimonialsRef, testimonialsInView] = useInView({ triggerOnce: true });
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [testimonials, setTestimonials] = useState([]);
+  const [tError, setTError] = useState(null);
+  const [tLoading, setTLoading] = useState(false);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadFeatured() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetch(`${API_URL}/products?featured=true&limit=3`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load featured products');
+        if (isMounted) setFeaturedProducts(data.products || []);
+      } catch (e) {
+        if (isMounted) setError(e.message);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+    async function loadTestimonials() {
+      try {
+        setTLoading(true);
+        setTError(null);
+        const res = await fetch(`${API_URL}/testimonials`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load testimonials');
+        if (isMounted) setTestimonials(data.testimonials || []);
+      } catch (e) {
+        if (isMounted) setTError(e.message);
+      } finally {
+        if (isMounted) setTLoading(false);
+      }
+    }
+    loadFeatured();
+    loadTestimonials();
+    return () => { isMounted = false; };
+  }, [API_URL]);
 
   return (
     <PageTransition>
@@ -72,9 +114,15 @@ const Home = () => {
             </p>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {products.slice(0, 3).map((product) => (
+            {loading && (
+              <div className="col-span-3 text-center text-sm text-gray-500">Loading featured products...</div>
+            )}
+            {!loading && !error && featuredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
+            {!loading && error && (
+              <div className="col-span-3 text-center text-sm text-red-600">{error}</div>
+            )}
           </div>
         </div>
       </section>
@@ -99,7 +147,13 @@ const Home = () => {
             </p>
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {testimonials.map((testimonial) => (
+            {tLoading && (
+              <div className="col-span-3 text-center text-sm text-gray-500">Loading testimonials...</div>
+            )}
+            {!tLoading && tError && (
+              <div className="col-span-3 text-center text-sm text-red-600">{tError}</div>
+            )}
+            {!tLoading && !tError && testimonials.map((testimonial) => (
               <motion.div
                 key={testimonial.id}
                 initial={{ opacity: 0, y: 20 }}

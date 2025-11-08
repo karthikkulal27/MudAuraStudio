@@ -1,3 +1,4 @@
+// Tailwind configuration with extended clay & earth palettes
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -8,29 +9,32 @@ export default {
     extend: {
       colors: {
         clay: {
-          50: '#f9f6f3',
-          100: '#f3ede6',
-          200: '#e6dfd4',
-          300: '#d9cfc0',
-          400: '#c9b4a3',
-          500: '#b89486',
-          600: '#a77a66',
-          700: '#8f5f4f',
-          800: '#6f4436',
-          900: '#503025',
+          50: '#fdf9f6',
+          100: '#f7ede5',
+          200: '#e9d3c3',
+          300: '#dbb9a2',
+          400: '#cfa182',
+          500: '#c38963',
+          600: '#a96f4a',
+          700: '#85543a',
+          800: '#5d3a28',
+          900: '#3b2419',
         },
         earth: {
-          50: '#faf9f7',
-          100: '#f3efe7',
-          200: '#e8e0d0',
-          300: '#d7c8b3',
-          400: '#c6b099',
-          500: '#b39a7f',
-          600: '#98755f',
-          700: '#7a563f',
-          800: '#5b3b2b',
-          900: '#412815',
+          50: '#f5f7f2',
+          100: '#e4ebe0',
+          200: '#c8d6c2',
+          300: '#a9c0a1',
+          400: '#8aa982',
+          500: '#6d8f66',
+          600: '#54724f',
+          700: '#3c5239',
+          800: '#273724',
+          900: '#141e13',
         },
+      },
+      fontFamily: {
+        serif: ['Georgia', 'serif'],
       },
     },
   },

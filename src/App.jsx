@@ -1,8 +1,10 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import { store } from './store/store';
 import Layout from './components/layout/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
+import { useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchMe } from './store/slices/authSlice';
+import { fetchCart, addToCart } from './store/slices/cartSlice';
 
 // Lazy load pages
 import { lazy, Suspense } from 'react';
@@ -21,11 +23,35 @@ const Register = lazy(() => import('./pages/auth/Register'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
-function App() {
+function AppInner() {
+  const dispatch = useDispatch();
+  const auth = useSelector(state => state.auth);
+  const localCart = useSelector(state => state.cart.items);
+  useEffect(() => {
+    dispatch(fetchMe());
+  }, [dispatch]);
+
+  // When user becomes authenticated, hydrate cart from backend and merge any local items
+  useEffect(() => {
+    async function hydrateCart() {
+      if (auth.isAuthenticated) {
+        // 1) Fetch remote cart
+        await dispatch(fetchCart());
+        // 2) Merge any local-only items by posting them once
+        if (localCart && localCart.length) {
+          for (const i of localCart) {
+            await dispatch(addToCart({ product: i, quantity: i.quantity }));
+          }
+        }
+      }
+    }
+    hydrateCart();
+    // Only re-run when auth state toggles to authenticated
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.isAuthenticated]);
   return (
     <ErrorBoundary>
-      <Provider store={store}>
-        <Router>
+      <Router>
           <Suspense fallback={
           <div className="min-h-screen flex items-center justify-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-clay-600"></div>
@@ -50,10 +76,11 @@ function App() {
             </Route>
           </Routes>
         </Suspense>
-          </Router>
-        </Provider>
+        </Router>
       </ErrorBoundary>
     );
 }
 
-export default App;
+export default function App() {
+  return <AppInner />;
+}

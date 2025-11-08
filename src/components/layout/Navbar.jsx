@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog } from '@headlessui/react';
+import { logout } from '../../store/slices/authSlice';
+import { logoutUser } from '../../utils/auth';
 import {
   ShoppingBagIcon,
   UserIcon,
@@ -22,9 +24,17 @@ const navigation = [
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const cartItems = useSelector((state) => state.cart.items);
+  const { isAuthenticated, user } = useSelector((state) => state.auth);
+  const dispatch = useDispatch();
   const cartItemCount = cartItems.reduce((total, item) => total + item.quantity, 0);
-  console.log("Dialog parts:", Dialog);
+  const handleLogout = () => {
+    // Clear local session and redux state, then navigate
+    logoutUser();
+    dispatch(logout());
+    navigate('/');
+  };
   return (
     <header className="bg-white shadow-sm fixed w-full top-0 z-50">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Top">
@@ -52,7 +62,7 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* Icons */}
+          {/* Auth + Icons */}
           <div className="flex items-center space-x-4">
             <button className="text-gray-500 hover:text-clay-600">
               <SearchIcon className="h-6 w-6" />
@@ -65,9 +75,17 @@ const Navbar = () => {
                 </span>
               )}
             </Link>
-            <Link to="/account" className="text-gray-500 hover:text-clay-600">
-              <UserIcon className="h-6 w-6" />
-            </Link>
+            {!isAuthenticated ? (
+              <div className="hidden md:flex items-center gap-3">
+                <Link to="/login" className="text-sm text-gray-600 hover:text-clay-700">Login</Link>
+                <Link to="/register" className="text-sm bg-clay-700 text-white px-3 py-1.5 rounded-md hover:bg-clay-800">Sign up</Link>
+              </div>
+            ) : (
+              <div className="hidden md:flex items-center gap-3">
+                <span className="text-sm text-gray-700">Hi, {user?.name?.split(' ')[0] || 'User'}</span>
+                <button onClick={handleLogout} className="text-sm text-gray-600 hover:text-clay-700">Logout</button>
+              </div>
+            )}
             <button
               className="md:hidden text-gray-500 hover:text-clay-600"
               onClick={() => setIsOpen(true)}
@@ -120,6 +138,16 @@ const Navbar = () => {
                     {item.name}
                   </Link>
                 ))}
+                <div className="pt-2 px-1">
+                  {!isAuthenticated ? (
+                    <div className="flex items-center gap-3">
+                      <Link to="/login" onClick={() => setIsOpen(false)} className="flex-1 text-center border px-3 py-2 rounded-md text-gray-700 hover:bg-gray-50">Login</Link>
+                      <Link to="/register" onClick={() => setIsOpen(false)} className="flex-1 text-center bg-clay-700 text-white px-3 py-2 rounded-md hover:bg-clay-800">Sign up</Link>
+                    </div>
+                  ) : (
+                    <button onClick={() => { handleLogout(); setIsOpen(false); }} className="w-full text-left px-3 py-2 text-gray-700 hover:bg-gray-50">Logout</button>
+                  )}
+                </div>
               </div>
             </motion.div>
           </Dialog>

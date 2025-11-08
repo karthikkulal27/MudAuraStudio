@@ -3,19 +3,19 @@ import cartReducer from './slices/cartSlice';
 import authReducer from './slices/authSlice';
 import productsReducer from './slices/productsSlice';
 
-// Load cart from localStorage if available
-const loadCart = () => {
+// Load persisted cart only; auth will hydrate via fetchMe on app mount
+const loadState = () => {
   try {
-    const serialized = localStorage.getItem('cart');
-    if (!serialized) return undefined;
-    return { cart: JSON.parse(serialized) };
+    const cartSerialized = localStorage.getItem('cart');
+    if (cartSerialized) return { cart: JSON.parse(cartSerialized) };
+    return undefined;
   } catch (e) {
     console.warn('Failed to load cart from localStorage', e);
     return undefined;
   }
 };
 
-const preloadedState = loadCart();
+const preloadedState = loadState();
 
 export const store = configureStore({
   reducer: {

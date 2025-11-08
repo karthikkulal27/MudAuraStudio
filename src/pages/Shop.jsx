@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useDispatch } from 'react-redux';
+import { useState, useEffect, useMemo } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import PageTransition from '../components/ui/PageTransition';
 import ProductCard from '../components/ui/ProductCard';
-import { products, categories } from '../data/products';
 import { setFilters } from '../store/slices/productsSlice';
+import { fetchProducts } from '../store/slices/productsSlice';
 
 const Shop = () => {
   const dispatch = useDispatch();
@@ -13,7 +13,14 @@ const Shop = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('latest');
   const [priceRange, setPriceRange] = useState([0, 1000]);
-  const [filteredProducts, setFilteredProducts] = useState(products);
+  const { items: remoteProducts, loading, error } = useSelector((s) => s.products);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  // Initial fetch of remote products
+  useEffect(() => {
+    dispatch(fetchProducts({}));
+  }, [dispatch]);
 
   // Get category from URL params
   useEffect(() => {
@@ -21,9 +28,21 @@ const Shop = () => {
     setSelectedCategory(category);
   }, [searchParams]);
 
+  // Derive categories dynamically from backend products
+  const derivedCategories = useMemo(() => {
+    const set = new Set(remoteProducts.map(p => p.category).filter(Boolean));
+    const list = Array.from(set).sort();
+    return [
+      { id: 'all', name: 'All Products' },
+      ...list.map((c) => ({ id: c, name: c }))
+    ];
+  }, [remoteProducts]);
+
   // Filter and sort products
   useEffect(() => {
-    let filtered = [...products];
+  // Use only backend products
+  const source = remoteProducts || [];
+  let filtered = [...source];
 
     // Apply category filter
     if (selectedCategory !== 'all') {
@@ -44,15 +63,19 @@ const Shop = () => {
         filtered.sort((a, b) => b.price - a.price);
         break;
       case 'rating':
-        filtered.sort((a, b) => b.rating - a.rating);
+        filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
       default: // 'latest'
-        filtered.sort((a, b) => b.id - a.id);
+        // Assuming products may not have numeric incremental id from backend; fallback to createdAt or name
+        filtered.sort((a, b) => {
+          if (a.createdAt && b.createdAt) return new Date(b.createdAt) - new Date(a.createdAt);
+          return (b.id || 0) - (a.id || 0);
+        });
     }
 
     setFilteredProducts(filtered);
     dispatch(setFilters({ category: selectedCategory, priceRange, sortBy }));
-  }, [selectedCategory, sortBy, priceRange, dispatch]);
+  }, [selectedCategory, sortBy, priceRange, remoteProducts, dispatch]);
 
   const handleCategoryChange = (category) => {
     setSelectedCategory(category);
@@ -79,7 +102,7 @@ const Shop = () => {
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <h3 className="font-medium text-gray-900 mb-4">Categories</h3>
               <div className="space-y-2">
-                {categories.map((category) => (
+                {derivedCategories.map((category) => (
                   <button
                     key={category.id}
                     onClick={() => handleCategoryChange(category.id)}
@@ -149,7 +172,13 @@ const Shop = () => {
             </div>
 
             {/* Empty State */}
-            {filteredProducts.length === 0 && (
+            {loading && (
+              <div className="text-center py-8 text-sm text-gray-600">Loading products...</div>
+            )}
+            {error && (
+              <div className="text-center py-8 text-sm text-red-600">{error}</div>
+            )}
+            {filteredProducts.length === 0 && !loading && !error && (
               <div className="text-center py-12">
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   No products found

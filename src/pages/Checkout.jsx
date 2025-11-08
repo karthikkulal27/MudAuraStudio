@@ -23,11 +23,26 @@ const Checkout = () => {
     return null;
   }
 
-  const onSubmit = async (data) => {
-    setIsProcessing(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    dispatch(clearCart());
-    navigate('/checkout/success');
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  const onSubmit = async () => {
+    try {
+      setIsProcessing(true);
+      const res = await fetch(`${API_URL}/stripe/create-checkout-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ items }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || 'Failed to start checkout');
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
+    } catch (e) {
+      console.error(e);
+      setIsProcessing(false);
+      // Optional: surface error to the user
+    }
   };
 
   // ✅ Floating Label Input
@@ -122,32 +137,7 @@ const Checkout = () => {
                 </div>
               </section>
 
-              {/* Payment Information */}
-              <section>
-                <h2 className="text-lg font-medium text-earth-800 mb-3 border-l-4 border-clay-500 pl-2">
-                  Payment Information
-                </h2>
-                <Input
-                  id="cardNumber"
-                  label="Card Number"
-                  {...register('cardNumber', { required: 'Card number is required' })}
-                  error={errors.cardNumber}
-                />
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    id="expiryDate"
-                    label="Expiry Date (MM/YY)"
-                    {...register('expiryDate', { required: 'Expiry date is required' })}
-                    error={errors.expiryDate}
-                  />
-                  <Input
-                    id="cvv"
-                    label="CVV"
-                    {...register('cvv', { required: 'CVV is required' })}
-                    error={errors.cvv}
-                  />
-                </div>
-              </section>
+              {/* Payment handled by Stripe redirect; card inputs removed */}
 
               <Button
                 type="submit"

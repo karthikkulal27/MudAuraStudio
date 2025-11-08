@@ -1,37 +1,37 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
+import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import Button from '../../components/ui/Button';
 import PageTransition from '../../components/ui/PageTransition';
+import { loginStart, loginSuccess, loginFailure } from '../../store/slices/authSlice';
+import { loginUser } from '../../utils/auth';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { loading } = useSelector((state) => state.auth);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    defaultValues: { email: '', password: '' }
+  });
+
+  const onSubmit = async (data) => {
     setError('');
-
+    dispatch(loginStart());
     try {
-      // TODO: Implement actual login logic here
-      console.log('Login attempt with:', formData);
+      const user = await loginUser({ email: data.email, password: data.password });
+      dispatch(loginSuccess(user));
       navigate('/shop');
     } catch (err) {
-      setError('Invalid email or password');
+      const msg = err?.message || 'Invalid email or password';
+      setError(msg);
+      dispatch(loginFailure(msg));
     }
-  };
-
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
   };
 
   return (
@@ -62,7 +62,7 @@ const Login = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
             className="mt-8 space-y-6"
-            onSubmit={handleSubmit}
+            onSubmit={handleSubmit(onSubmit)}
           >
             {error && (
               <div className="text-red-600 text-sm text-center">{error}</div>
@@ -75,31 +75,33 @@ const Login = () => {
                 </label>
                 <input
                   id="email"
-                  name="email"
                   type="email"
                   autoComplete="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
+                  {...register('email', { required: 'Email is required', pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' } })}
                   className="appearance-none rounded-none relative block w-full px-3 py-2 border border-clay-300 placeholder-clay-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-clay-500 focus:border-clay-500 focus:z-10 sm:text-sm"
                   placeholder="Email address"
                 />
+                {errors.email && <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>}
               </div>
-              <div>
-                <label htmlFor="password" className="sr-only">
-                  Password
-                </label>
+              <div className="relative">
+                <label htmlFor="password" className="sr-only">Password</label>
                 <input
                   id="password"
-                  name="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
+                  {...register('password', { required: 'Password is required', minLength: { value: 6, message: 'At least 6 characters' } })}
                   className="appearance-none rounded-none relative block w-full px-3 py-2 border border-clay-300 placeholder-clay-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-clay-500 focus:border-clay-500 focus:z-10 sm:text-sm"
                   placeholder="Password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  className="absolute inset-y-0 right-3 flex items-center text-gray-500 hover:text-gray-700"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                </button>
+                {errors.password && <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>}
               </div>
             </div>
 
@@ -130,8 +132,8 @@ const Login = () => {
             </div>
 
             <div>
-              <Button type="submit" className="w-full">
-                Sign in
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Signing in...' : 'Sign in'}
               </Button>
             </div>
           </motion.form>

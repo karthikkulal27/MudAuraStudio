@@ -45,7 +45,7 @@ const Home = () => {
             as={Link}
             to="/shop"
             size="lg"
-            className="backdrop-blur-sm bg-white/20 hover:bg-white/30 border-2 border-white"
+            // className="backdrop-blur-sm bg-white/20 hover:bg-white/30 border-2 border-white"
           >
             Shop Collection
           </Button>

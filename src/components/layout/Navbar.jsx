@@ -3,12 +3,12 @@ import { Link, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog } from '@headlessui/react';
-import { 
-  ShoppingBagIcon, 
-  UserIcon, 
-  Bars3Icon as MenuIcon, 
+import {
+  ShoppingBagIcon,
+  UserIcon,
+  Bars3Icon as MenuIcon,
   XMarkIcon as XIcon,
-  MagnifyingGlassIcon as SearchIcon 
+  MagnifyingGlassIcon as SearchIcon
 } from '@heroicons/react/24/outline';
 
 const navigation = [
@@ -24,7 +24,7 @@ const Navbar = () => {
   const location = useLocation();
   const cartItems = useSelector((state) => state.cart.items);
   const cartItemCount = cartItems.reduce((total, item) => total + item.quantity, 0);
-
+  console.log("Dialog parts:", Dialog);
   return (
     <header className="bg-white shadow-sm fixed w-full top-0 z-50">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="Top">
@@ -42,11 +42,10 @@ const Navbar = () => {
               <Link
                 key={item.name}
                 to={item.href}
-                className={`text-sm font-medium ${
-                  location.pathname === item.href
-                    ? 'text-clay-600'
-                    : 'text-gray-500 hover:text-clay-600'
-                }`}
+                className={`text-sm font-medium ${location.pathname === item.href
+                  ? 'text-clay-600'
+                  : 'text-gray-500 hover:text-clay-600'
+                  }`}
               >
                 {item.name}
               </Link>
@@ -83,14 +82,14 @@ const Navbar = () => {
       <AnimatePresence>
         {isOpen && (
           <Dialog
-            as={motion.div}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClose={setIsOpen}
+            open={isOpen}
+            onClose={() => setIsOpen(false)}
             className="fixed inset-0 z-50 md:hidden"
           >
-            <Dialog.Overlay className="fixed inset-0 bg-black bg-opacity-25" />
+            <div className="fixed inset-0 bg-black bg-opacity-25" />
+
+
+            {/* Animate this container instead */}
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
@@ -109,6 +108,7 @@ const Navbar = () => {
                   <XIcon className="h-6 w-6" />
                 </button>
               </div>
+
               <div className="px-2 py-3 divide-y divide-gray-100">
                 {navigation.map((item) => (
                   <Link
@@ -125,6 +125,7 @@ const Navbar = () => {
           </Dialog>
         )}
       </AnimatePresence>
+
     </header>
   );
 };

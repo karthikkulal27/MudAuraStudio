@@ -14,11 +14,28 @@ dotenv.config();
 const app = express();
 
 // CORS and cookies
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+  'http://localhost:5173',
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, cb) => {
+    // Allow same-origin or server-to-server (no origin)
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.some((o) => origin === o)) return cb(null, true);
+    return cb(null, false);
+  },
   credentials: true,
 }));
 app.use(cookieParser());
+
+// Debug request logger (temporary – remove once stable)
+app.use((req, res, next) => {
+  console.log('[REQ]', req.method, req.url);
+  next();
+});
 
 // IMPORTANT: Mount Stripe webhook BEFORE express.json(), because it needs raw body
 // Our stripeRoutes file defines router.post('/webhook', express.raw(...)),
@@ -35,10 +52,18 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/cart', cartRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// Health check (both /api/health and /health for serverless path ambiguity)
+const healthHandler = (req, res) => {
+  res.json({
+    status: 'ok',
+    path: req.originalUrl,
+    node: process.version,
+    env: process.env.NODE_ENV || 'unknown',
+    timestamp: new Date().toISOString(),
+  });
+};
+app.get('/api/health', healthHandler);
+app.get('/health', healthHandler);
 
 // Error handling
 app.use((err, req, res, next) => {

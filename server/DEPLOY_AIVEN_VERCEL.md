@@ -105,7 +105,7 @@ No further code changes needed.
    - `FRONTEND_URL=https://your-frontend-domain.vercel.app`
 7. Deploy.
 8. After deploy, test endpoint:
-   `https://<backend-project>.vercel.app/api/health`
+   `https://<backend-project>.vercel.app/health` (or `/api/health` if using the serverless direct route)
 
 ---
 ## 8. Deploy Frontend to Vercel
@@ -114,14 +114,16 @@ No further code changes needed.
 3. Build Command: `npm run build` (ensure root `package.json` has build script, usually `vite build`).
 4. Output Directory: `dist`
 5. Environment Vars:
-   - `VITE_API_URL=https://<backend-project>.vercel.app/api`
+   - `VITE_API_URL=https://<backend-project>.vercel.app`  
+     (If you decide to standardize on `/api` prefix, then set `.../api` instead.)
 6. Deploy.
 7. Open site and test login/register flows.
 
 ---
 ## 9. Configure Stripe Webhook for Production
 In Stripe Dashboard → Developers → Webhooks → Add endpoint:
-- Endpoint URL: `https://<backend-project>.vercel.app/api/stripe/webhook`
+- Endpoint URL: `https://<backend-project>.vercel.app/stripe/webhook`  
+   (If you standardize on the `/api` prefix: `.../api/stripe/webhook`)
 - Events: `checkout.session.completed`
 - Reveal signing secret → update Vercel backend project env `STRIPE_WEBHOOK_SECRET` → redeploy.
 
@@ -130,7 +132,7 @@ In Stripe Dashboard → Developers → Webhooks → Add endpoint:
 | Flow | How to test |
 |------|-------------|
 | Auth cookie | Open devtools → Application → Cookies after login |
-| Products API | Network tab shows fetch to `/api/products` returning JSON |
+| Products API | Network tab shows fetch to `/products` (or `/api/products` if prefix used) returning JSON |
 | Cart persistence | Add item logged-in, refresh → still there |
 | Checkout | Click checkout → redirect to Stripe test page |
 | Webhook (after payment) | Stripe Dashboard → Logs shows 200 from webhook |
@@ -142,7 +144,7 @@ In Stripe Dashboard → Developers → Webhooks → Add endpoint:
 | 500 on all queries | Wrong `DATABASE_URL` | Double-check host/port/password encoding |
 | `ECONNREFUSED` | Port invalid or service sleeping | Confirm Aiven port, ensure service running |
 | SSL handshake | CA not trusted | Add `?sslaccept=accept_invalid_certs` or provide `sslcert=ca.pem` |
-| CORS blocked | FRONTEND_URL mismatch | Set exact deployed frontend origin in backend env |
+| CORS blocked | FRONTEND_URL mismatch | Set exact deployed frontend origin in backend env (e.g., https://your-frontend.vercel.app) |
 | Cookies missing | Missing `credentials: 'include'` | Ensure fetch calls include credentials |
 | Stripe webhook 400 | Raw body lost | Ensure `/api/stripe/webhook` mounted before `express.json()` (already done) |
 

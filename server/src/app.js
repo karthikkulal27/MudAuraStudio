@@ -8,6 +8,8 @@ import orderRoutes from './routes/orders.js';
 import stripeRoutes from './routes/stripe.js';
 import testimonialRoutes from './routes/testimonials.js';
 import cartRoutes from './routes/cart.js';
+import adminRoutes from './routes/admin.js';
+import { debugTokenMiddleware } from './middleware/auth.js';
 
 dotenv.config();
 
@@ -21,12 +23,7 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 app.use(cors({
-  origin: (origin, cb) => {
-    // Allow same-origin or server-to-server (no origin)
-    if (!origin) return cb(null, true);
-    if (allowedOrigins.some((o) => origin === o)) return cb(null, true);
-    return cb(null, false);
-  },
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(cookieParser());
@@ -52,12 +49,14 @@ app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/testimonials', testimonialRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use('/auth', authRoutes);
 app.use('/products', productRoutes);
 app.use('/orders', orderRoutes);
 app.use('/testimonials', testimonialRoutes);
 app.use('/cart', cartRoutes);
+app.use('/admin', adminRoutes);
 
 // Health check (both /api/health and /health for serverless path ambiguity)
 const healthHandler = (req, res) => {
@@ -71,6 +70,11 @@ const healthHandler = (req, res) => {
 };
 app.get('/api/health', healthHandler);
 app.get('/health', healthHandler);
+
+// Dev-only token debug endpoint
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/debug/token', debugTokenMiddleware);
+}
 
 // Error handling
 app.use((err, req, res, next) => {

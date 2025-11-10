@@ -4,7 +4,8 @@ import prisma from '../config/database.js';
 
 export const register = async (req, res) => {
   try {
-    const { email, name, password } = req.body;
+  let { email, name, password } = req.body;
+  if (typeof email === 'string') email = email.trim().toLowerCase();
 
     // Validation
     if (!email || !name || !password) {
@@ -35,26 +36,31 @@ export const register = async (req, res) => {
         id: true,
         email: true,
         name: true,
+        role: true,
         createdAt: true,
       },
     });
 
     // Generate JWT
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
-    // Set cookie (SameSite=None in production for cross-site requests)
+    // Cookie settings: simpler, reliable policy
+    // - In development: sameSite=lax, secure=false (works with Vite proxy same-origin)
+    // - In production: sameSite=none, secure=true (cross-origin frontends)
+    const isProd = process.env.NODE_ENV === 'production';
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.status(201).json({ user });
+  res.status(201).json({ user });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ error: 'Registration failed' });
@@ -63,14 +69,15 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+  let { email, password } = req.body;
+  if (typeof email === 'string') email = email.trim().toLowerCase();
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
     // Find user
-    const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
@@ -83,16 +90,17 @@ export const login = async (req, res) => {
 
     // Generate JWT
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      { userId: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 
-    // Set cookie (SameSite=None in production for cross-site requests)
+    const isProd2 = process.env.NODE_ENV === 'production';
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: isProd2,
+      sameSite: isProd2 ? 'none' : 'lax',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -101,6 +109,7 @@ export const login = async (req, res) => {
         id: user.id,
         email: user.email,
         name: user.name,
+        role: user.role,
       },
     });
   } catch (error) {
@@ -122,6 +131,7 @@ export const getMe = async (req, res) => {
         id: true,
         email: true,
         name: true,
+        role: true,
         createdAt: true,
       },
     });

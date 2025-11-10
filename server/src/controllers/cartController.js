@@ -89,3 +89,62 @@ export const clearCart = async (req, res) => {
     res.status(500).json({ error: 'Failed to clear cart' });
   }
 };
+
+// Sync a full cart payload (array of items) merging with existing quantities.
+// Body shape: { items: [{ productId: string, quantity: number }, ...] }
+// Rules:
+// - Ignore items with quantity <= 0
+// - If item exists: set to provided quantity (not additive) to reflect client intent
+// - If product does not exist: skip silently
+// - Cap quantity at 99 to prevent overflow abuse
+export const syncCart = async (req, res) => {
+  try {
+    const { items } = req.body || {};
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: 'items array required' });
+    }
+    const userId = req.user.userId;
+
+    // Fetch existing items for quick lookup
+    const existing = await prisma.cartItem.findMany({ where: { userId } });
+    const existingMap = new Map(existing.map(i => [i.productId, i]));
+
+    for (const entry of items) {
+      const productId = entry?.productId;
+      let quantity = Number(entry?.quantity);
+      if (!productId || isNaN(quantity)) continue;
+      if (quantity <= 0) {
+        // Remove if present
+        if (existingMap.has(productId)) {
+          await prisma.cartItem.deleteMany({ where: { userId, productId } });
+          existingMap.delete(productId);
+        }
+        continue;
+      }
+      quantity = Math.min(quantity, 99);
+
+      // Ensure product exists
+      const product = await prisma.product.findUnique({ where: { id: productId } });
+      if (!product) continue; // skip missing product
+
+      if (existingMap.has(productId)) {
+        await prisma.cartItem.update({
+          where: { userId_productId: { userId, productId } },
+          data: { quantity }
+        });
+      } else {
+        await prisma.cartItem.create({ data: { userId, productId, quantity } });
+        existingMap.set(productId, { productId, quantity });
+      }
+    }
+
+    const finalItems = await prisma.cartItem.findMany({
+      where: { userId },
+      include: { product: true }
+    });
+    res.json({ items: finalItems.map(i => ({ product: i.product, quantity: i.quantity })) });
+  } catch (err) {
+    console.error('SyncCart error:', err);
+    res.status(500).json({ error: 'Failed to sync cart' });
+  }
+};

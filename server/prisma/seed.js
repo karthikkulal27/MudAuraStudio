@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -74,6 +75,18 @@ const products = [
 
 async function main() {
   console.log('🌱 Starting seed...');
+
+  // Seed admin user if env provided (or defaults)
+  const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@example.com';
+  const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Admin123!';
+  const ADMIN_NAME = process.env.ADMIN_NAME || 'Super Admin';
+  const hashed = await bcrypt.hash(ADMIN_PASSWORD, 10);
+  await prisma.user.upsert({
+    where: { email: ADMIN_EMAIL },
+    update: { name: ADMIN_NAME, password: hashed, role: 'ADMIN' },
+    create: { email: ADMIN_EMAIL, name: ADMIN_NAME, password: hashed, role: 'ADMIN' },
+  });
+  console.log(`✅ Admin user ensured: ${ADMIN_EMAIL} / (your password)`);
 
   // Clear existing products (optional)
   await prisma.product.deleteMany();

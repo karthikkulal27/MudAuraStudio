@@ -26,17 +26,21 @@ npm install
 ```
 
 ### 2. Setup Environment Variables
-Copy `.env.example` to `.env` and update the values:
+Copy `.env.example` to `.env` and update the values for LOCAL development:
 
 ```bash
 cp .env.example .env
 ```
 
-Update these in `.env`:
-- `DATABASE_URL`: Your MySQL connection string (e.g., `mysql://root:password@localhost:3306/clayaura`)
-- `JWT_SECRET`: A strong random secret for JWT tokens
-- `STRIPE_SECRET_KEY`: Your Stripe secret key (get from Stripe Dashboard)
-- `STRIPE_WEBHOOK_SECRET`: Webhook signing secret (after setting up webhooks)
+Local development uses a locally running MySQL instance (XAMPP/WAMP/Docker/native). Production (Vercel) should use your managed Aiven connection string set via the Vercel dashboard, NOT committed to git.
+
+Essential variables (local):
+- `DATABASE_URL` local MySQL (e.g., `mysql://root:password@localhost:3306/clayaura`)
+- `JWT_SECRET` random string (change in prod!)
+- `STRIPE_SECRET_KEY` test key (sk_test...)
+- `STRIPE_WEBHOOK_SECRET` after you run Stripe CLI or dashboard webhook
+- `FRONTEND_URL` usually `http://localhost:5173`
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` for seeding an admin user
 
 ### 3. Create Database
 Create a MySQL database named `clayaura`:
@@ -52,12 +56,12 @@ npm run prisma:migrate
 
 This will create all necessary tables in your database.
 
-### 5. Seed Sample Data
+### 5. Seed Sample Data (and Admin User)
 ```bash
 npm run prisma:seed
 ```
 
-This will populate your database with sample products.
+This will populate your database with sample products, testimonials, and upsert an admin user using `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` from `.env`.
 
 ### 6. Start Development Server
 ```bash
@@ -241,11 +245,35 @@ Change PORT in `.env` or kill the process using port 5000
 ## 📦 Deployment
 
 For production:
-1. Set `NODE_ENV=production` in .env
-2. Use a managed MySQL service (Aiven, Railway, PlanetScale Hobby, AWS RDS)
-3. Set strong JWT_SECRET
-4. Configure Stripe webhook endpoint in Stripe Dashboard
-5. Deploy to Railway, Render, or similar platform
+1. Use Aiven (or other managed MySQL) and copy its connection string into Vercel project Environment Variables as `DATABASE_URL` (do NOT commit production credentials)
+2. Set `NODE_ENV=production` in Vercel env (not in repo `.env`)
+3. Set a long random `JWT_SECRET` (32+ chars)
+4. Add `FRONTEND_URL` with your deployed frontend origin (e.g. `https://your-frontend.vercel.app`)
+5. Add Stripe live keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) when going live
+6. Add `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` if you want automatic admin upsert on seed (run one-time via `npx prisma db seed` in a build step or locally pointing to prod DB)
+7. Run `npx prisma migrate deploy` on Vercel (Build Command or manually) to apply migrations to the production database
+8. (Optional) Keep `?connection_limit=1` query param in `DATABASE_URL` to reduce serverless connection pressure.
+
+### Local vs Production DB Strategy
+| Aspect | Local (Dev) | Production (Vercel + Aiven) |
+|--------|-------------|-----------------------------|
+| DATABASE_URL | mysql://root:pwd@localhost:3306/clayaura | mysql://avnadmin:pwd@host:port/defaultdb?connection_limit=1 |
+| Auth Cookie SameSite | Lax (same origin) | None + Secure (cross-origin) |
+| Admin Seed | `npm run prisma:seed` locally | Optional manual seed / promote or seed pointing at prod DB |
+| Stripe Keys | Test | Live |
+| Migrations | `prisma migrate dev` | `prisma migrate deploy` |
+
+To develop safely: keep a purely local DB for iteration; only point to Aiven when you intend to test production-like behavior.
+
+### Switching Between Local and Aiven During Dev
+You can comment/uncomment lines in `.env` or maintain two files:
+```
+.env.local.mysql
+.env.local.aiven
+```
+Then copy the one you need into `.env` before running migrations.
+
+NEVER apply experimental migrations directly to production—validate locally first.
 
 ---
 

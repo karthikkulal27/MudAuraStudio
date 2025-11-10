@@ -1,6 +1,7 @@
 // Backend-connected auth utilities using fetch and httpOnly cookies
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Relative /api ensures cookie sending in dev via Vite proxy; override with VITE_API_URL for production
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 const handleResponse = async (res) => {
   const data = await res.json().catch(() => ({}));

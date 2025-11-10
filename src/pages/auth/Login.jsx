@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import Button from '../../components/ui/Button';
 import PageTransition from '../../components/ui/PageTransition';
-import { loginStart, loginSuccess, loginFailure } from '../../store/slices/authSlice';
+import { loginStart, loginSuccess, loginFailure, loginAndHydrate } from '../../store/slices/authSlice';
 import { loginUser } from '../../utils/auth';
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
@@ -22,15 +22,16 @@ const Login = () => {
 
   const onSubmit = async (data) => {
     setError('');
-    dispatch(loginStart());
     try {
-      const user = await loginUser({ email: data.email, password: data.password });
-      dispatch(loginSuccess(user));
-      navigate('/shop');
+      // Use combined login + cart hydration helper
+  const user = await dispatch(loginAndHydrate({ email: data.email, password: data.password }, loginUser));
+  // If admin, go to dashboard; otherwise to shop
+  const state = user?.payload || null;
+  const role = state?.role || null;
+  navigate(role === 'ADMIN' ? '/admin' : '/shop');
     } catch (err) {
       const msg = err?.message || 'Invalid email or password';
       setError(msg);
-      dispatch(loginFailure(msg));
     }
   };
 

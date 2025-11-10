@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getCurrentUser } from '../../utils/auth';
+import { hydrateCart } from './cartSlice';
 
 const initialState = {
   user: null,
@@ -65,3 +66,19 @@ export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { rejectWithVa
     return rejectWithValue(e.message || 'Failed to fetch user');
   }
 });
+
+// After a successful loginSuccess dispatch from UI, trigger hydration
+export const loginAndHydrate = (credentials, loginFn) => async (dispatch) => {
+  try {
+    dispatch(loginStart());
+    const user = await loginFn(credentials);
+    dispatch(loginSuccess(user));
+    // hydrate cart in background
+    dispatch(hydrateCart());
+    return user;
+  } catch (e) {
+    const msg = e.message || 'Login failed';
+    dispatch(loginFailure(msg));
+    throw e;
+  }
+};

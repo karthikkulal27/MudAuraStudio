@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Use relative /api for dev (proxied by Vite) to preserve cookies; fall back to VITE_API_URL if defined
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 export const fetchProducts = createAsyncThunk(
   'products/fetchProducts',
@@ -29,6 +30,63 @@ export const fetchProductById = createAsyncThunk(
       const data = await res.json();
       if (!res.ok) return rejectWithValue(data.error || 'Failed to fetch product');
       return data.product;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Network error');
+    }
+  }
+);
+
+export const createProduct = createAsyncThunk(
+  'products/createProduct',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await fetch(`${API_URL}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) return rejectWithValue(data.error || 'Failed to create product');
+      return data.product;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Network error');
+    }
+  }
+);
+
+export const updateProduct = createAsyncThunk(
+  'products/updateProduct',
+  async ({ id, updates }, { rejectWithValue }) => {
+    try {
+      const res = await fetch(`${API_URL}/products/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates)
+      });
+      const data = await res.json();
+      if (!res.ok) return rejectWithValue(data.error || 'Failed to update product');
+      return data.product;
+    } catch (err) {
+      return rejectWithValue(err.message || 'Network error');
+    }
+  }
+);
+
+export const deleteProduct = createAsyncThunk(
+  'products/deleteProduct',
+  async (id, { rejectWithValue }) => {
+    try {
+      const res = await fetch(`${API_URL}/products/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(()=>({}));
+        return rejectWithValue(data.error || 'Failed to delete product');
+      }
+      return id;
     } catch (err) {
       return rejectWithValue(err.message || 'Network error');
     }
@@ -83,6 +141,32 @@ export const productsSlice = createSlice({
       .addCase(fetchProductById.rejected, (state, action) => {
         state.productLoading = false;
         state.productError = action.payload;
+      })
+      // Create
+      .addCase(createProduct.fulfilled, (state, action) => {
+        state.items.unshift(action.payload);
+        state.byId[action.payload.id] = action.payload;
+      })
+      .addCase(createProduct.rejected, (state, action) => {
+        state.error = action.payload;
+      })
+      // Update
+      .addCase(updateProduct.fulfilled, (state, action) => {
+        const updated = action.payload;
+        state.items = state.items.map(p => p.id === updated.id ? updated : p);
+        state.byId[updated.id] = updated;
+      })
+      .addCase(updateProduct.rejected, (state, action) => {
+        state.error = action.payload;
+      })
+      // Delete
+      .addCase(deleteProduct.fulfilled, (state, action) => {
+        const id = action.payload;
+        state.items = state.items.filter(p => p.id !== id);
+        delete state.byId[id];
+      })
+      .addCase(deleteProduct.rejected, (state, action) => {
+        state.error = action.payload;
       });
   }
 });

@@ -60,6 +60,9 @@ const Navbar = () => {
                 {item.name}
               </Link>
             ))}
+            {isAuthenticated && user?.role === 'ADMIN' && (
+              <Link to="/admin" className={`text-sm font-medium ${location.pathname.startsWith('/admin') ? 'text-clay-600' : 'text-gray-500 hover:text-clay-600'}`}>Admin</Link>
+            )}
           </div>
 
           {/* Auth + Icons */}
@@ -128,7 +131,7 @@ const Navbar = () => {
               </div>
 
               <div className="px-2 py-3 divide-y divide-gray-100">
-                {navigation.map((item) => (
+                {navigation.concat(isAuthenticated && user?.role === 'ADMIN' ? [{ name: 'Admin', href: '/admin' }] : []).map((item) => (
                   <Link
                     key={item.name}
                     to={item.href}

@@ -1,10 +1,11 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchMe } from './store/slices/authSlice';
-import { fetchCart, addToCart } from './store/slices/cartSlice';
+import { fetchCart, addToCart, hydrateCart } from './store/slices/cartSlice';
+import AdminRoute from './components/AdminRoute';
 
 // Lazy load pages
 import { lazy, Suspense } from 'react';
@@ -22,6 +23,10 @@ const Login = lazy(() => import('./pages/auth/Login'));
 const Register = lazy(() => import('./pages/auth/Register'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
+const ProductsAdmin = lazy(() => import('./pages/admin/ProductsAdmin'));
+const OrdersAdmin = lazy(() => import('./pages/admin/OrdersAdmin'));
+const UsersAdmin = lazy(() => import('./pages/admin/UsersAdmin'));
 
 function AppInner() {
   const dispatch = useDispatch();
@@ -31,22 +36,11 @@ function AppInner() {
     dispatch(fetchMe());
   }, [dispatch]);
 
-  // When user becomes authenticated, hydrate cart from backend and merge any local items
+  // When user becomes authenticated, perform hydration via dedicated thunk
   useEffect(() => {
-    async function hydrateCart() {
-      if (auth.isAuthenticated) {
-        // 1) Fetch remote cart
-        await dispatch(fetchCart());
-        // 2) Merge any local-only items by posting them once
-        if (localCart && localCart.length) {
-          for (const i of localCart) {
-            await dispatch(addToCart({ product: i, quantity: i.quantity }));
-          }
-        }
-      }
+    if (auth.isAuthenticated) {
+      dispatch(hydrateCart());
     }
-    hydrateCart();
-    // Only re-run when auth state toggles to authenticated
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.isAuthenticated]);
   return (
@@ -59,7 +53,11 @@ function AppInner() {
         }>
           <Routes>
             <Route path="/" element={<Layout />}>
-              <Route index element={<Home />} />
+              <Route index element={(
+                auth.isAuthenticated && auth.user?.role === 'ADMIN'
+                  ? <Navigate to="/admin" replace />
+                  : <Home />
+              )} />
               <Route path="shop" element={<Shop />} />
               <Route path="product/:id" element={<ProductDetails />} />
               <Route path="cart" element={<Cart />} />
@@ -72,6 +70,10 @@ function AppInner() {
               <Route path="login" element={<Login />} />
               <Route path="register" element={<Register />} />
               <Route path="forgot-password" element={<ForgotPassword />} />
+              <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+              <Route path="admin/products" element={<AdminRoute><ProductsAdmin /></AdminRoute>} />
+              <Route path="admin/orders" element={<AdminRoute><OrdersAdmin /></AdminRoute>} />
+              <Route path="admin/users" element={<AdminRoute><UsersAdmin /></AdminRoute>} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

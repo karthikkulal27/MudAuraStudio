@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Helper to transform backend cart payload into flat items
 const flatten = (items = []) => items.map(i => ({ ...i.product, quantity: i.quantity }));
@@ -83,6 +83,42 @@ export const clearCartRemote = createAsyncThunk('cart/clearCartRemote', async (_
     return { items: flatten(data.items) };
   } catch (e) {
     return rejectWithValue(e.message || 'Network error');
+  }
+});
+
+// Hydrate cart on login: fetch remote, merge with current local state, push merged to server via /cart/sync
+export const hydrateCart = createAsyncThunk('cart/hydrateCart', async (_, { getState, rejectWithValue }) => {
+  const state = getState();
+  const { auth, cart } = state;
+  if (!auth.isAuthenticated) return { skipped: true };
+  try {
+    // Fetch remote items
+    const res = await fetch(`${API_URL}/cart`, { credentials: 'include' });
+    const remoteData = await res.json();
+    const remoteItems = Array.isArray(remoteData.items) ? remoteData.items.map(i => ({ ...i.product, quantity: i.quantity })) : [];
+
+    // Merge logic: sum quantities per product id
+    const map = new Map();
+    for (const item of cart.items) {
+      map.set(item.id, (map.get(item.id) || 0) + item.quantity);
+    }
+    for (const r of remoteItems) {
+      map.set(r.id, (map.get(r.id) || 0) + r.quantity);
+    }
+    const merged = Array.from(map.entries()).map(([id, quantity]) => ({ productId: id, quantity: Math.min(quantity, 99) }));
+
+    // Push merged set to server
+    const syncRes = await fetch(`${API_URL}/cart/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ items: merged })
+    });
+    const synced = await syncRes.json();
+    if (!syncRes.ok) return rejectWithValue(synced.error || 'Sync failed');
+    return { items: synced.items.map(i => ({ ...i.product, quantity: i.quantity })) };
+  } catch (e) {
+    return rejectWithValue(e.message || 'Hydration error');
   }
 });
 
@@ -177,6 +213,12 @@ export const cartSlice = createSlice({
           state.items = action.payload.items;
         }
         state.total = 0;
+      })
+      .addCase(hydrateCart.fulfilled, (state, action) => {
+        if (action.payload?.items) {
+          state.items = action.payload.items;
+          state.total = state.items.reduce((t, i) => t + i.price * i.quantity, 0);
+        }
       });
   }
 });
